@@ -2,6 +2,10 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+const DEFAULT_ICON_URL = '/favicon.png';
+const LEGACY_DEFAULT_ICON_URL = '/api/uploads/default_icon.png';
+const LEGACY_DEFAULT_FAVICON_URL = '/api/uploads/default_favicon.png';
+
 export class SettingsService {
   private static instance: SettingsService;
   private cachedSettings: any = null;
@@ -13,12 +17,25 @@ export class SettingsService {
     return SettingsService.instance;
   }
 
+  private normalizeBrandingDefaults(settings: any) {
+    if (!settings) return settings;
+
+    const normalizedIcon =
+      settings.iconUrl === LEGACY_DEFAULT_ICON_URL ? DEFAULT_ICON_URL : settings.iconUrl;
+    const normalizedFavicon =
+      settings.faviconUrl === LEGACY_DEFAULT_FAVICON_URL ? DEFAULT_ICON_URL : settings.faviconUrl;
+
+    return {
+      ...settings,
+      iconUrl: normalizedIcon,
+      faviconUrl: normalizedFavicon,
+    };
+  }
+
   async getSettings() {
     try {
-      // Buscar configurações globais do banco
       let settings = await prisma.globalSettings.findFirst();
 
-      // Se não existir, criar configuração padrão
       if (!settings) {
         settings = await prisma.globalSettings.create({
           data: {
@@ -28,18 +45,18 @@ export class SettingsService {
             evolutionHost: '',
             evolutionApiKey: '',
             companyName: 'Astra Campaign',
-            pageTitle: 'Sistema de Gestão de Contatos',
-            iconUrl: '/api/uploads/default_icon.png',
-            faviconUrl: '/api/uploads/default_favicon.png'
-          }
+            pageTitle: 'Sistema de Gestao de Contatos',
+            iconUrl: DEFAULT_ICON_URL,
+            faviconUrl: DEFAULT_ICON_URL,
+          },
         });
       }
 
-      this.cachedSettings = settings;
-      return settings;
+      const normalizedSettings = this.normalizeBrandingDefaults(settings);
+      this.cachedSettings = normalizedSettings;
+      return normalizedSettings;
     } catch (error) {
       console.error('Error getting settings:', error);
-      // Retornar configurações padrão se houver erro
       return {
         wahaHost: '',
         wahaApiKey: '',
@@ -50,9 +67,9 @@ export class SettingsService {
         quepasaPassword: '',
         companyName: '',
         logoUrl: null,
-        faviconUrl: '/api/uploads/default_favicon.png',
-        pageTitle: 'Sistema de Gestão de Contatos',
-        iconUrl: '/api/uploads/default_icon.png'
+        faviconUrl: DEFAULT_ICON_URL,
+        pageTitle: 'Sistema de Gestao de Contatos',
+        iconUrl: DEFAULT_ICON_URL,
       };
     }
   }
@@ -72,11 +89,9 @@ export class SettingsService {
     iconUrl?: string | null;
   }) {
     try {
-      // Buscar configuração existente
       let settings = await prisma.globalSettings.findFirst();
 
       if (settings) {
-        // Atualizar configuração existente
         settings = await prisma.globalSettings.update({
           where: { id: settings.id },
           data: {
@@ -91,11 +106,10 @@ export class SettingsService {
             companyName: data.companyName !== undefined ? data.companyName : settings.companyName,
             faviconUrl: data.faviconUrl !== undefined ? data.faviconUrl : settings.faviconUrl,
             pageTitle: data.pageTitle !== undefined ? data.pageTitle : settings.pageTitle,
-            iconUrl: data.iconUrl !== undefined ? data.iconUrl : settings.iconUrl
-          }
+            iconUrl: data.iconUrl !== undefined ? data.iconUrl : settings.iconUrl,
+          },
         });
       } else {
-        // Criar nova configuração
         settings = await prisma.globalSettings.create({
           data: {
             singleton: true,
@@ -108,53 +122,48 @@ export class SettingsService {
             quepasaPassword: data.quepasaPassword || '',
             logoUrl: data.logoUrl || null,
             companyName: data.companyName || 'Astra Campaign',
-            faviconUrl: data.faviconUrl || '/api/uploads/default_favicon.png',
-            pageTitle: data.pageTitle || 'Sistema de Gestão de Contatos',
-            iconUrl: data.iconUrl || '/api/uploads/default_icon.png'
-          }
+            faviconUrl: data.faviconUrl || DEFAULT_ICON_URL,
+            pageTitle: data.pageTitle || 'Sistema de Gestao de Contatos',
+            iconUrl: data.iconUrl || DEFAULT_ICON_URL,
+          },
         });
       }
 
-      // Limpar cache
+      const normalizedSettings = this.normalizeBrandingDefaults(settings);
       this.cachedSettings = null;
-
-      return settings;
+      return normalizedSettings;
     } catch (error) {
       console.error('Error updating settings:', error);
       throw error;
     }
   }
 
-  // Método para obter configurações de forma síncrona (para cache)
   getCachedSettings() {
     return this.cachedSettings;
   }
 
-  // Método para obter configurações WAHA especificamente
   async getWahaConfig() {
     const settings = await this.getSettings();
     return {
       host: settings.wahaHost,
-      apiKey: settings.wahaApiKey
+      apiKey: settings.wahaApiKey,
     };
   }
 
-  // Método para obter configurações Evolution especificamente
   async getEvolutionConfig() {
     const settings = await this.getSettings();
     return {
       host: settings.evolutionHost,
-      apiKey: settings.evolutionApiKey
+      apiKey: settings.evolutionApiKey,
     };
   }
 
-  // Método para obter configurações Quepasa especificamente
   async getQuepasaConfig() {
     const settings = await this.getSettings();
     return {
       url: settings.quepasaUrl,
       login: settings.quepasaLogin,
-      password: settings.quepasaPassword
+      password: settings.quepasaPassword,
     };
   }
 }
