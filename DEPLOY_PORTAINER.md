@@ -4,7 +4,7 @@
 - Portainer com acesso ao Docker Engine (modo normal, não Swarm).
 - Repositório acessível pelo Portainer.
 - Portas livres no host:
-  - `8080` (frontend)
+  - `8090` (frontend)
   - `3001` (backend, opcional para debug/API direta)
 
 ## 2) Arquivos usados
@@ -25,8 +25,8 @@
 5. Deploy da stack.
 
 ## 4) Pós-deploy
-- URL frontend: `http://SEU_HOST:8080`
-- API healthcheck: `http://SEU_HOST:3001/api/health`
+- URL frontend: `http://72.61.46.172:8090`
+- API healthcheck: `http://72.61.46.172:3001/api/health`
 
 ## 5) Usuário padrão (seed)
 - `superadmin@astraonline.com.br`
