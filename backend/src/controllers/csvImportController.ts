@@ -8,7 +8,7 @@ import { ApiError } from '../types';
 // Configurar multer para upload de arquivos
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, '/tmp/uploads'); // Usar diretório temporário
+    cb(null, '/tmp/uploads'); // Usar diretorio temporario
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -17,12 +17,19 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req: AuthenticatedRequest, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  if (file.mimetype === 'text/csv' ||
-      file.mimetype === 'application/csv' ||
-      path.extname(file.originalname).toLowerCase() === '.csv') {
+  const extension = path.extname(file.originalname).toLowerCase();
+  const isCsv = file.mimetype === 'text/csv' ||
+    file.mimetype === 'application/csv' ||
+    extension === '.csv';
+  const isExcel = file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+    file.mimetype === 'application/vnd.ms-excel' ||
+    extension === '.xlsx' ||
+    extension === '.xls';
+
+  if (isCsv || isExcel) {
     cb(null, true);
   } else {
-    cb(new Error('Apenas arquivos CSV são permitidos'));
+    cb(new Error('Apenas arquivos CSV ou Excel (.xlsx, .xls) sao permitidos'));
   }
 };
 
@@ -44,32 +51,32 @@ export class CSVImportController {
         return res.status(400).json(apiError);
       }
 
-      // Obter tenantId da requisição autenticada
+      // Obter tenantId da requisicao autenticada
       const tenantId = req.tenantId;
       if (!tenantId) {
         const apiError: ApiError = {
-          error: 'Tenant não identificado'
+          error: 'Tenant nao identificado'
         };
         return res.status(403).json(apiError);
       }
 
-      console.log('📤 Upload recebido:', req.file.originalname, req.file.filename, 'tenantId:', tenantId);
+      console.log('Upload recebido:', req.file.originalname, req.file.filename, 'tenantId:', tenantId);
 
       const result = await CSVImportService.importContacts(req.file.path, tenantId);
 
       if (result.success) {
         res.json({
-          message: 'Importação concluída com sucesso',
+          message: 'Importacao concluida com sucesso',
           ...result
         });
       } else {
-        res.status(207).json({ // 207 Multi-Status para importações parciais
-          message: 'Importação concluída com alguns erros',
+        res.status(207).json({ // 207 Multi-Status para importacoes parciais
+          message: 'Importacao concluida com alguns erros',
           ...result
         });
       }
     } catch (error) {
-      console.error('❌ Erro na importação CSV:', error);
+      console.error('Erro na importacao CSV:', error);
       const apiError: ApiError = {
         error: 'Erro ao processar arquivo CSV',
         details: error instanceof Error ? error.message : error
@@ -80,18 +87,18 @@ export class CSVImportController {
 
   static async downloadTemplate(req: AuthenticatedRequest, res: Response) {
     try {
-      // CSV template com cabeçalhos em português
-      const csvTemplate = `nome,telefone,email,observacoes,categoriaId
-João Silva,+5511999999999,joao@email.com,Cliente desde 2020,550e8400-e29b-41d4-a716-446655440000
-Maria Santos,+5511888888888,maria@email.com,Fornecedor de materiais,550e8400-e29b-41d4-a716-446655440001
-Pedro Oliveira,+5511777777777,pedro@email.com,,
-Ana Costa,+5511666666666,ana@email.com,Parceiro estratégico,550e8400-e29b-41d4-a716-446655440000`;
+      // CSV template com cabecalhos do importador em massa
+      const csvTemplate = `nome,telefone,e-mail,categoria
+Joao Silva,+5511999999999,joao@email.com,Clientes
+Maria Santos,+5511888888888,maria@email.com,Fornecedores
+Pedro Oliveira,+5511777777777,pedro@email.com,Prospects
+Ana Costa,+5511666666666,ana@email.com,Clientes`;
 
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', 'attachment; filename="template-contatos.csv"');
       res.send(csvTemplate);
     } catch (error) {
-      console.error('❌ Erro ao gerar template:', error);
+      console.error('Erro ao gerar template:', error);
       const apiError: ApiError = {
         error: 'Erro ao gerar template CSV'
       };

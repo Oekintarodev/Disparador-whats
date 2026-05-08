@@ -42,12 +42,30 @@ export function useCategories(params: UseCategoriesParams = {}) {
   const deleteCategory = useCallback(async (id: string) => {
     try {
       await apiService.deleteCategory(id);
-      toast.success('Categoria excluída com sucesso');
+      toast.success('Categoria excluida com sucesso');
       fetchCategories();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao excluir categoria';
       toast.error(errorMessage);
     }
+  }, [fetchCategories]);
+
+  const deleteCategoriesBulk = useCallback(async (ids: string[]) => {
+    if (!ids.length) return { successCount: 0, failedCount: 0 };
+
+    const results = await Promise.allSettled(ids.map((id) => apiService.deleteCategory(id)));
+    const successCount = results.filter((r) => r.status === 'fulfilled').length;
+    const failedCount = results.length - successCount;
+
+    if (successCount > 0) {
+      toast.success(`${successCount} categoria(s) excluida(s) com sucesso`);
+    }
+    if (failedCount > 0) {
+      toast.error(`${failedCount} categoria(s) nao puderam ser excluidas`);
+    }
+
+    fetchCategories();
+    return { successCount, failedCount };
   }, [fetchCategories]);
 
   const refresh = useCallback(() => {
@@ -62,5 +80,6 @@ export function useCategories(params: UseCategoriesParams = {}) {
     error,
     refresh,
     deleteCategory,
+    deleteCategoriesBulk,
   };
 }

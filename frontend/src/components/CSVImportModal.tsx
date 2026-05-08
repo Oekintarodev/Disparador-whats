@@ -13,14 +13,22 @@ export function CSVImportModal({ isOpen, onClose, onSuccess }: CSVImportModalPro
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const hasPartialSuccess = Boolean(
+    importResult &&
+    importResult.failedImports > 0 &&
+    importResult.successfulImports > 0
+  );
 
   if (!isOpen) return null;
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
     if (selectedFile) {
-      if (selectedFile.type !== 'text/csv' && !selectedFile.name.endsWith('.csv')) {
-        toast.error('Por favor, selecione um arquivo CSV válido');
+      const extension = selectedFile.name.split('.').pop()?.toLowerCase();
+      const allowedExtensions = ['csv', 'xlsx', 'xls'];
+
+      if (!extension || !allowedExtensions.includes(extension)) {
+        toast.error('Selecione um arquivo CSV ou Excel (.xlsx/.xls) valido');
         return;
       }
       setFile(selectedFile);
@@ -40,11 +48,11 @@ export function CSVImportModal({ isOpen, onClose, onSuccess }: CSVImportModalPro
       setImportResult(result);
 
       if (result.success) {
-        toast.success(`Importação concluída! ${result.successfulImports} contatos importados.`);
+        toast.success(`Importacao concluida! ${result.successfulImports} contatos importados.`);
         onSuccess();
       } else {
-        toast(`Importação parcial: ${result.successfulImports} sucessos, ${result.failedImports} erros.`, {
-          icon: '⚠️',
+        toast(`Importacao parcial: ${result.successfulImports} sucessos, ${result.failedImports} erros.`, {
+          icon: '!',
           style: {
             border: '1px solid #f59e0b',
             color: '#92400e',
@@ -83,6 +91,14 @@ export function CSVImportModal({ isOpen, onClose, onSuccess }: CSVImportModalPro
     onClose();
   };
 
+  const handleIgnoreErrorsAndFinish = () => {
+    if (!hasPartialSuccess || !importResult) return;
+
+    toast.success(`Concluido: ${importResult.successfulImports} contatos validos foram importados.`);
+    onSuccess();
+    handleClose();
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm overflow-y-auto">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-xl border border-gray-100 my-8" role="dialog" aria-labelledby="import-title">
@@ -90,10 +106,10 @@ export function CSVImportModal({ isOpen, onClose, onSuccess }: CSVImportModalPro
           <div className="flex justify-between items-start mb-6">
             <div>
               <h2 id="import-title" className="text-xl font-bold text-gray-900">
-                Importar Contatos via CSV
+                Importar Contatos via CSV/Excel
               </h2>
               <p className="text-sm text-gray-500 mt-1">
-                Importe múltiplos contatos de uma só vez
+                Importe multiplos contatos via CSV ou Excel
               </p>
             </div>
             <button
@@ -139,7 +155,7 @@ export function CSVImportModal({ isOpen, onClose, onSuccess }: CSVImportModalPro
               <input
                 id="csv-file"
                 type="file"
-                accept=".csv,text/csv"
+                accept=".csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 onChange={handleFileChange}
                 className="hidden"
               />
@@ -148,7 +164,7 @@ export function CSVImportModal({ isOpen, onClose, onSuccess }: CSVImportModalPro
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
                 <p className="text-sm text-gray-600 font-medium">Clique para selecionar</p>
-                <p className="text-xs text-gray-400 mt-1">Formato: .csv</p>
+                <p className="text-xs text-gray-400 mt-1">Formatos: .csv, .xlsx, .xls</p>
               </label>
             </div>
             {file && (
@@ -167,11 +183,15 @@ export function CSVImportModal({ isOpen, onClose, onSuccess }: CSVImportModalPro
 
           {/* Import Instructions */}
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-            <h3 className="font-medium text-gray-900 text-sm mb-2">ℹ️ Instruções</h3>
+            <h3 className="font-medium text-gray-900 text-sm mb-2">Instrucoes</h3>
             <ul className="text-xs text-gray-600 space-y-1">
-              <li>• Colunas obrigatórias: <strong>nome</strong> e <strong>telefone</strong></li>
-              <li>• Opcionais: email, observacoes, categoriaId</li>
-              <li>• Use o template como referência</li>
+              <li>- Colunas recomendadas: <strong>nome</strong>, <strong>telefone</strong>, <strong>e-mail</strong> e <strong>categoria</strong></li>
+              <li>- Obrigatorios para criar contato: <strong>nome</strong> e <strong>telefone</strong></li>
+              <li>- O sistema localiza os campos pelo nome das colunas (aceita variacoes)</li>
+              <li>- Telefones sem formato sao ajustados automaticamente para padrao internacional</li>
+              <li>- A categoria e criada automaticamente se ainda nao existir</li>
+              <li>- Compatibilidade legada: <code>categoriaId</code> ainda e aceito</li>
+              <li>- Use o template como referencia</li>
             </ul>
           </div>
 
@@ -179,7 +199,7 @@ export function CSVImportModal({ isOpen, onClose, onSuccess }: CSVImportModalPro
           {importResult && (
             <div className={`border rounded-lg p-4 ${importResult.success ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
               <h3 className={`font-medium text-sm mb-3 ${importResult.success ? 'text-green-900' : 'text-yellow-900'}`}>
-                {importResult.success ? '✅' : '⚠️'} Resultado da Importação
+                {importResult.success ? 'OK' : '!'} Resultado da Importacao
               </h3>
               <div className="grid grid-cols-3 gap-2 mb-3">
                 <div className="bg-white rounded p-2 text-center">
@@ -219,9 +239,17 @@ export function CSVImportModal({ isOpen, onClose, onSuccess }: CSVImportModalPro
             >
               Fechar
             </button>
+            {hasPartialSuccess && (
+              <button
+                onClick={handleIgnoreErrorsAndFinish}
+                className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 font-medium transition-colors text-sm"
+              >
+                Ignorar Erros e Concluir
+              </button>
+            )}
             <button
               onClick={handleImport}
-              disabled={!file || isUploading}
+              disabled={!file || isUploading || Boolean(importResult?.successfulImports)}
               className="btn-primary flex-1 py-2 px-4 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
             >
               {isUploading ? (

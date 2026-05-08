@@ -36,9 +36,9 @@ import httpProxyRoutes from './routes/httpProxyRoutes';
 import { authMiddleware } from './middleware/auth';
 import './services/campaignSchedulerService'; // Inicializar scheduler
 import { initializeAlertsMonitoring } from './services/alertsMonitoringService'; // Inicializar monitoramento de alertas
-import { initializeBackupService } from './services/backupService'; // Inicializar serviço de backup
+import { initializeBackupService } from './services/backupService'; // Inicializar serviÃ§o de backup
 import { websocketService } from './services/websocketService'; // Inicializar WebSocket
-import { automationService } from './services/automationService'; // Inicializar automação
+import { automationService } from './services/automationService'; // Inicializar automaÃ§Ã£o
 
 const app = express();
 const server = createServer(app);
@@ -47,10 +47,14 @@ const PORT = process.env.PORT || 3001;
 // Configurar para confiar no proxy (nginx/traefik) - apenas no primeiro proxy
 app.set('trust proxy', 1);
 
-// Criar diretório para uploads temporários
+// Criar diretÃ³rio para uploads temporÃ¡rios
 const uploadDir = '/tmp/uploads';
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
+}
+const appUploadsDir = '/app/uploads';
+if (!fs.existsSync(appUploadsDir)) {
+  fs.mkdirSync(appUploadsDir, { recursive: true });
 }
 
 // CORS configurado de forma segura
@@ -68,7 +72,7 @@ const corsOptions = {
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      callback(new Error('Não permitido pelo CORS'), false);
+      callback(new Error('NÃ£o permitido pelo CORS'), false);
     }
   },
   credentials: true,
@@ -83,7 +87,7 @@ const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
   max: 1000, // limite de 1000 requests por IP por janela de tempo
   message: {
-    error: 'Muitas requisições deste IP, tente novamente em 15 minutos.'
+    error: 'Muitas requisiÃ§Ãµes deste IP, tente novamente em 15 minutos.'
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -101,9 +105,9 @@ const authLimiter = rateLimit({
 
 const aiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minuto
-  max: 20, // limite de 20 requisições IA por minuto
+  max: 20, // limite de 20 requisiÃ§Ãµes IA por minuto
   message: {
-    error: 'Muitas requisições para IA, tente novamente em 1 minuto.'
+    error: 'Muitas requisiÃ§Ãµes para IA, tente novamente em 1 minuto.'
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -128,25 +132,25 @@ app.use((req, res, next) => {
   express.urlencoded({ limit: '50mb', extended: true })(req, res, next);
 });
 
-// Rotas públicas (autenticação) - rate limiting temporariamente desabilitado
+// Rotas pÃºblicas (autenticaÃ§Ã£o) - rate limiting temporariamente desabilitado
 app.use('/api/auth', authRoutes);
 
-// Rota pública para configurações (favicon e título)
+// Rota pÃºblica para configuraÃ§Ãµes (favicon e tÃ­tulo)
 app.use('/api/settings', settingsRoutes);
 
-// Health check público
+// Health check pÃºblico
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Servir uploads estaticamente (público)
+// Servir uploads estaticamente (pÃºblico)
 app.use('/api/uploads', express.static('/app/uploads'));
 
-// Rotas públicas de webhooks (recebem de provedores externos)
+// Rotas pÃºblicas de webhooks (recebem de provedores externos)
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/webhooks', incomingWebhookRoutes);
 
-// Rotas protegidas (requerem autenticação)
+// Rotas protegidas (requerem autenticaÃ§Ã£o)
 app.use('/api/contatos', authMiddleware, contactRoutes);
 app.use('/api/categorias', authMiddleware, categoryRoutes);
 app.use('/api/csv', authMiddleware, csvImportRoutes);
@@ -167,7 +171,7 @@ app.use('/api/chatwoot', authMiddleware, chatwootRoutes); // Chatwoot integratio
 app.use('/api/perfex', authMiddleware, perfexRoutes); // Perfex CRM integration
 // app.use('/api/integrations', integrationsRoutes); // External API integrations system
 // app.use('/api/cache', cacheRoutes); // Cache management and monitoring
-app.use('/api/media', authMiddleware, mediaRoutes); // Upload de arquivos de mídia
+app.use('/api/media', authMiddleware, mediaRoutes); // Upload de arquivos de mÃ­dia
 app.use('/api/connections', authMiddleware, connectionRoutes); // Interactive campaigns - Connections
 app.use('/api/interactive-campaigns', authMiddleware, interactiveCampaignRoutes); // Interactive campaigns
 app.use('/api/http-proxy', authMiddleware, httpProxyRoutes); // HTTP REST proxy to avoid CORS

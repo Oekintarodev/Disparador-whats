@@ -8,13 +8,16 @@ import path from 'path';
 import fs from 'fs';
 
 const tenantSettingsService = new TenantSettingsService();
+const APP_UPLOADS_DIR = '/app/uploads';
 
 
 // Configuração do multer para upload de logos
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = '/app/uploads';
-    cb(null, uploadDir);
+    if (!fs.existsSync(APP_UPLOADS_DIR)) {
+      fs.mkdirSync(APP_UPLOADS_DIR, { recursive: true });
+    }
+    cb(null, APP_UPLOADS_DIR);
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
@@ -27,7 +30,17 @@ const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/x-icon', 'image/vnd.microsoft.icon'];
+    const allowedTypes = [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'image/svg+xml',
+      'image/x-icon',
+      'image/vnd.microsoft.icon',
+      'image/ico'
+    ];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
