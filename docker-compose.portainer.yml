@@ -1,0 +1,100 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: disparador_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-contacts}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-contacts}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    container_name: disparador_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: disparador-backend:latest
+    container_name: disparador_backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-contacts}?schema=public
+      REDIS_URL: redis://redis:6379
+      REDIS_PREFIX: ${REDIS_PREFIX:-disparador_app}
+      PORT: 3001
+      NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET:-change-this-jwt-secret-with-32-plus-chars}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8080,http://localhost:5173,http://localhost:3000}
+      DEFAULT_WAHA_HOST: ${DEFAULT_WAHA_HOST:-}
+      DEFAULT_WAHA_API_KEY: ${DEFAULT_WAHA_API_KEY:-}
+      DEFAULT_EVOLUTION_HOST: ${DEFAULT_EVOLUTION_HOST:-}
+      DEFAULT_EVOLUTION_API_KEY: ${DEFAULT_EVOLUTION_API_KEY:-}
+      DEFAULT_COMPANY_NAME: ${DEFAULT_COMPANY_NAME:-Disparador Whats}
+      DEFAULT_PAGE_TITLE: ${DEFAULT_PAGE_TITLE:-Disparador Whats}
+      DEFAULT_LOGO_URL: ${DEFAULT_LOGO_URL:-}
+      DEFAULT_FAVICON_URL: ${DEFAULT_FAVICON_URL:-}
+      DEFAULT_PRIMARY_COLOR: ${DEFAULT_PRIMARY_COLOR:-#3B82F6}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - contacts_data:/app/data
+      - uploads_data:/app/uploads
+      - backup_data:/app/backups
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/api/health >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: disparador-frontend:latest
+    container_name: disparador_frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  postgres_data:
+  redis_data:
+  contacts_data:
+  uploads_data:
+  backup_data:
