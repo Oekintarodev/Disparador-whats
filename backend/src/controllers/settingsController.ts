@@ -158,6 +158,7 @@ export const getPublicSettings = async (req: Request, res: Response) => {
     res.json({
       faviconUrl: settings.faviconUrl,
       pageTitle: settings.pageTitle,
+      logoUrl: settings.logoUrl,
       iconUrl: settings.iconUrl,
       companyName: settings.companyName
     });

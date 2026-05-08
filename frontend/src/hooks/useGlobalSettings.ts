@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 interface Settings {
   faviconUrl?: string;
   pageTitle?: string;
+  logoUrl?: string;
   iconUrl?: string;
   companyName?: string;
 }
@@ -26,6 +27,7 @@ export function useGlobalSettings() {
         setSettings({
           faviconUrl: data.faviconUrl,
           pageTitle: data.pageTitle,
+          logoUrl: data.logoUrl,
           iconUrl: data.iconUrl,
           companyName: data.companyName
         });
